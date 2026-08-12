@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Калькулятор розмитнення легкового автомобіля</title>
+<meta name="description" content="Розрахунок митних платежів для легкового авто за даними з європейського техпаспорта, курсом НБУ та курсом обмінника x-change-x.com (Рівне).">
+<style>
+  :root{
+    --paper:#eef1f5;
+    --paper-raised:#ffffff;
+    --ink:#1b2a3a;
+    --ink-soft:#4c5c70;
+    --ink-faint:#7d8ba0;
+    --line:#c7d0da;
+    --line-soft:#dde3ea;
+    --accent:#9c2b2b;
+    --accent-ink:#ffffff;
+    --money:#1f6f5c;
+    --money-soft:#e4f0ec;
+    --warn:#8a5a10;
+    --warn-bg:#fbf1de;
+    --focus:#2f6fb3;
+    --code-bg:#e4e9ef;
+    --shadow: 0 1px 2px rgba(27,42,58,.06), 0 6px 20px rgba(27,42,58,.06);
+  }
+  :root[data-theme="dark"]{
+    --paper:#141c26;
+    --paper-raised:#1b2530;
+    --ink:#e7ecf2;
+    --ink-soft:#aab6c6;
+    --ink-faint:#7d8ba0;
+    --line:#334154;
+    --line-soft:#28323f;
+    --accent:#e0716a;
+    --accent-ink:#1b0d0c;
+    --money:#5fc3a6;
+    --money-soft:#1c3530;
+    --warn:#e3b361;
+    --warn-bg:#3a2e17;
+    --focus:#6cabe8;
+    --code-bg:#232d3a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;
+    font-size:15px;
+  }
+  h1,h2,h3{
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+    font-weight:600;
+    text-wrap:balance;
+    color:var(--ink);
+    margin:0;
+  }
+  .tabular{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; }
+  code,.mono{
+    font-family:"SF Mono","Cascadia Code",Consolas,"Roboto Mono",monospace;
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ---- top band ---- */
+  .band{
+    background:
+      repeating-linear-gradient(135deg, rgba(156,43,43,.05) 0 2px, transparent 2px 14px),
+      linear-gradient(180deg, var(--paper-raised), var(--paper));
+    border-bottom:1px solid var(--line);
+  }
+  .band-inner{
+    max-width:1120px; margin:0 auto; padding:28px 24px 22px;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+  }
+  .eyebrow{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    text-transform:uppercase; letter-spacing:.09em; font-size:11.5px;
+    color:var(--accent); font-weight:700; margin:0 0 8px;
+  }
+  .band h1{ font-size:clamp(22px,3.4vw,30px); }
+  .band p.lede{ color:var(--ink-soft); margin:8px 0 0; max-width:56ch; font-size:14.5px; }
+  .theme-toggle{
+    border:1px solid var(--line); background:var(--paper-raised); color:var(--ink-soft);
+    border-radius:8px; padding:7px 12px; font-size:13px; cursor:pointer; white-space:nowrap;
+  }
+  .theme-toggle:hover{ color:var(--ink); border-color:var(--ink-faint); }
+
+  /* ---- layout ---- */
+  .wrap{ max-width:1120px; margin:0 auto; padding:26px 24px 80px; }
+  .grid{ display:grid; grid-template-columns:1fr; gap:22px; }
+  @media (min-width:920px){
+    .grid{ grid-template-columns: 1.5fr 1fr; align-items:start; }
+    .summary{ position:sticky; top:20px; }
+  }
+
+  .panel{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:12px;
+    box-shadow:var(--shadow);
+  }
+  .panel + .panel{ margin-top:18px; }
+  .panel-head{
+    padding:16px 20px; border-bottom:1px solid var(--line-soft);
+    display:flex; align-items:baseline; gap:10px; justify-content:space-between;
+  }
+  .panel-head h2{ font-size:16.5px; }
+  .panel-num{ font-family:Georgia,serif; color:var(--ink-faint); font-size:13px; }
+  .panel-body{ padding:18px 20px 20px; }
+
+  .field-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px 16px; }
+  @media (max-width:520px){ .field-grid{ grid-template-columns:1fr; } }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field.span2{ grid-column:1 / -1; }
+  label{ font-size:12.5px; color:var(--ink-soft); display:flex; gap:6px; align-items:baseline; }
+  .code-chip{
+    font-family:"SF Mono",Consolas,monospace; font-size:10.5px; background:var(--code-bg);
+    color:var(--ink-soft); padding:1px 5px; border-radius:4px; letter-spacing:.02em;
+  }
+  input[type=text], input[type=number], input[type=date], select{
+    font:inherit; font-size:14.5px; padding:9px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--paper); color:var(--ink);
+    width:100%;
+  }
+  input:focus, select:focus, button:focus-visible, summary:focus-visible{
+    outline:2px solid var(--focus); outline-offset:1px;
+  }
+  .unit-input{ position:relative; }
+  .unit-input input{ padding-right:44px; }
+  .unit-input span{
+    position:absolute; right:10px; top:50%; transform:translateY(-50%);
+    font-size:12px; color:var(--ink-faint); pointer-events:none;
+  }
+  .radio-row{ display:flex; gap:14px; flex-wrap:wrap; }
+  .radio-row label{ display:flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink); }
+  .radio-row input{ width:auto; }
+  .hint{ font-size:12px; color:var(--ink-faint); margin-top:2px; }
+
+  .btn{
+    font:inherit; font-size:13.5px; font-weight:600; padding:9px 14px; border-radius:8px;
+    border:1px solid var(--line); background:var(--paper); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{ border-color:var(--ink-faint); }
+  .btn-primary{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .btn-primary:hover{ filter:brightness(1.06); }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .status-msg{ font-size:12.5px; color:var(--ink-faint); }
+  .status-msg.ok{ color:var(--money); }
+  .status-msg.err{ color:var(--accent); }
+
+  .rate-row{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end; }
+
+  details.adv{ border-top:1px dashed var(--line-soft); margin-top:16px; padding-top:14px; }
+  summary{ cursor:pointer; font-size:13px; font-weight:600; color:var(--ink-soft); list-style:none; }
+  summary::-webkit-details-marker{ display:none; }
+  summary:before{ content:"▸ "; color:var(--accent); }
+  details[open] summary:before{ content:"▾ "; }
+  .adv-note{
+    background:var(--warn-bg); color:var(--warn); border-radius:8px; padding:10px 12px;
+    font-size:12.5px; margin:12px 0; line-height:1.5;
+  }
+  table.rates{ width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
+  table.rates th, table.rates td{ padding:6px 8px; border-bottom:1px solid var(--line-soft); text-align:left; }
+  table.rates th{ color:var(--ink-faint); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; }
+  table.rates input{ padding:5px 7px; font-size:13px; }
+  table.rates td:last-child, table.rates th:last-child{ text-align:right; }
+
+  /* ---- summary ledger ---- */
+  .ledger-row{ display:flex; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--line-soft); font-size:14px; }
+  .ledger-row:last-of-type{ border-bottom:none; }
+  .ledger-row .label{ color:var(--ink-soft); }
+  .ledger-row .val{ font-family:"SF Mono",Consolas,monospace; font-variant-numeric:tabular-nums; }
+  .ledger-total{
+    margin-top:6px; padding-top:14px; border-top:2px solid var(--ink);
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .ledger-total .label{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); }
+  .ledger-total .val{ font-family:Georgia,serif; font-size:28px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+
+  .usd-card{
+    margin-top:16px; background:var(--money-soft); border:1px solid color-mix(in srgb, var(--money) 35%, var(--line));
+    border-radius:10px; padding:16px 18px;
+  }
+  .usd-card .label{ font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--money); font-weight:700; }
+  .usd-card .val{ font-family:Georgia,serif; font-size:30px; font-weight:700; color:var(--ink); margin-top:4px; font-variant-numeric:tabular-nums; }
+  .usd-card .sub{ font-size:12px; color:var(--ink-soft); margin-top:6px; }
+
+  .nbu-info{ font-size:12px; color:var(--ink-faint); margin-top:6px; }
+  .warn-banner{
+    background:var(--warn-bg); color:var(--warn); border:1px solid color-mix(in srgb, var(--warn) 35%, var(--line));
+    border-radius:10px; padding:12px 16px; font-size:13px; margin-bottom:18px; line-height:1.55;
+  }
+  .warn-banner strong{ display:block; margin-bottom:2px; }
+  a{ color:var(--focus); }
+
+  footer{ max-width:1120px; margin:0 auto; padding:0 24px 40px; color:var(--ink-faint); font-size:12px; line-height:1.6; }
+  footer a{ color:var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<div class="band">
+  <div class="band-inner">
+    <div>
+      <p class="eyebrow">Митні платежі · легкові автомобілі</p>
+      <h1>Калькулятор розмитнення авто</h1>
+      <p class="lede">Дані автомобіля — з європейського техпаспорта (Certificate of Conformity / реєстраційний документ). Курс для митних платежів — з НБУ. Підсумок у доларах — за курсом обмінного пункту x-change-x.com у Рівному.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">🌙 Темна тема</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="warn-banner" id="topWarning" hidden></div>
+
+  <div class="grid">
+    <div class="inputs">
+
+      <!-- 1. Vehicle data -->
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Дані автомобіля</h2>
+          <span class="panel-num">з техпаспорта</span>
+        </div>
+        <div class="panel-body">
+          <div class="field-grid">
+            <div class="field">
+              <label>Марка <span class="code-chip">D.1</span></label>
+              <input type="text" id="make" placeholder="напр. Volkswagen">
+            </div>
+            <div class="field">
+              <label>Модель <span class="code-chip">D.3</span></label>
+              <input type="text" id="model" placeholder="напр. Passat">
+            </div>
+            <div class="field">
+              <label>VIN <span class="code-chip">A</span></label>
+              <input type="text" id="vin" placeholder="17 символів" maxlength="17">
+            </div>
+            <div class="field">
+              <label>Дата першої реєстрації <span class="code-chip">B</span></label>
+              <input type="date" id="regDate">
+            </div>
+            <div class="field">
+              <label>Робочий об'єм двигуна <span class="code-chip">P.1</span></label>
+              <div class="unit-input"><input type="number" id="engineVolume" min="0" step="1" placeholder="1968"><span>см³</span></div>
+            </div>
+            <div class="field">
+              <label>Тип палива / двигуна <span class="code-chip">P.3</span></label>
+              <select id="fuelType">
+                <option value="petrol">Бензин</option>
+                <option value="diesel">Дизель</option>
+                <option value="lpg">Газ (LPG/CNG)</option>
+                <option value="hybrid-petrol">Гібрид (бензин + електро)</option>
+                <option value="hybrid-diesel">Гібрид (дизель + електро)</option>
+                <option value="electric">Електро (без ДВЗ)</option>
+              </select>
+            </div>
+            <div class="field" id="batteryField" hidden>
+              <label>Ємність тягової батареї</label>
+              <div class="unit-input"><input type="number" id="batteryKwh" min="0" step="0.1" placeholder="58"><span>кВт·год</span></div>
+            </div>
+            <div class="field">
+              <label>Країна виробництва — походження ЄС?</label>
+              <select id="originEU">
+                <option value="yes">Так, країна ЄС (Угода про асоціацію)</option>
+                <option value="no">Ні, інша країна</option>
+              </select>
+            </div>
+          </div>
+          <p class="hint" id="ageHint">Вік автомобіля розраховується автоматично від дати першої реєстрації.</p>
+        </div>
+      </div>
+
+      <!-- 2. Customs value -->
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Митна вартість</h2>
+          <span class="panel-num">02</span>
+        </div>
+        <div class="panel-body">
+          <div class="field-grid">
+            <div class="field">
+              <label>Митна вартість (за інвойсом/договором)</label>
+              <input type="number" id="customsValue" min="0" step="1" placeholder="12000">
+            </div>
+            <div class="field">
+              <label>Валюта вартості</label>
+              <div class="radio-row" style="padding-top:9px">
+                <label><input type="radio" name="cvCurrency" value="EUR" checked> EUR</label>
+                <label><input type="radio" name="cvCurrency" value="USD"> USD</label>
+              </div>
+            </div>
+            <div class="field span2">
+              <label>Витрати на транспортування до кордону України (додається до митної вартості)</label>
+              <div class="unit-input"><input type="number" id="transportCost" min="0" step="1" value="0"><span id="transportUnit">EUR</span></div>
+              <p class="hint">За ст. 58–59 Митного кодексу до митної вартості додаються витрати на перевезення до пункту ввезення в Україну.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Exchange rates -->
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Курси валют</h2>
+          <span class="panel-num">03</span>
+        </div>
+        <div class="panel-body">
+          <div class="field-grid">
+            <div class="field">
+              <label>Курс НБУ, USD/UAH</label>
+              <input type="number" id="nbuUsd" min="0" step="0.0001" placeholder="напр. 41.6000">
+            </div>
+            <div class="field">
+              <label>Курс НБУ, EUR/UAH</label>
+              <input type="number" id="nbuEur" min="0" step="0.0001" placeholder="напр. 45.2000">
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:12px">
+            <button class="btn" id="fetchNbu" type="button">Отримати курс НБУ автоматично</button>
+            <span class="status-msg" id="nbuStatus"></span>
+          </div>
+          <p class="nbu-info">Джерело: <a href="https://bank.gov.ua/ua/markets/exchangerates" target="_blank" rel="noopener">bank.gov.ua — офіційний курс НБУ</a>. Митна вартість перераховується у гривню саме за цим курсом.</p>
+
+          <details class="adv" open>
+            <summary>Курс обмінника x-change-x.com (Рівне) — для перерахунку підсумку в долари</summary>
+            <div class="field-grid" style="margin-top:12px">
+              <div class="field">
+                <label>Курс купівлі USD, грн</label>
+                <input type="number" id="xchangeBuy" min="0" step="0.01" placeholder="напр. 41.30">
+              </div>
+              <div class="field">
+                <label>Курс продажу USD, грн</label>
+                <input type="number" id="xchangeSell" min="0" step="0.01" placeholder="напр. 41.70">
+              </div>
+              <div class="field span2">
+                <label>Який курс використати для підсумку в USD</label>
+                <div class="radio-row">
+                  <label><input type="radio" name="xchangeUse" value="sell" checked> Продаж</label>
+                  <label><input type="radio" name="xchangeUse" value="buy"> Купівля</label>
+                </div>
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn" id="fetchXchange" type="button">Спробувати отримати автоматично</button>
+              <a class="btn" href="https://x-change-x.com/rivne/" target="_blank" rel="noopener" style="text-decoration:none; display:inline-flex; align-items:center;">Відкрити x-change-x.com/rivne ↗</a>
+            </div>
+            <p class="status-msg" id="xchangeStatus" style="margin-top:8px">Сайт обмінника, як правило, не дозволяє автоматичне зчитування курсу з браузера (CORS) — введіть курс вручну зі сторінки вище.</p>
+          </details>
+        </div>
+      </div>
+
+      <!-- 4. Advanced rates -->
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Ставки та коефіцієнти</h2>
+          <span class="panel-num">04 · розширено</span>
+        </div>
+        <div class="panel-body">
+          <div class="adv-note">
+            ⚠️ Ставки мита, акцизу, ПДВ та вікові коефіцієнти встановлюються Податковим та Митним кодексами України і періодично змінюються Верховною Радою. Нижче наведені орієнтовні значення для довідки — перед реальною сплатою звірте їх на <a href="https://zakon.rada.gov.ua/laws/show/2755-17" target="_blank" rel="noopener">zakon.rada.gov.ua (ст. 215 ПКУ)</a> або сайті <a href="https://customs.gov.ua" target="_blank" rel="noopener">Державної митної служби</a> і за потреби відредагуйте поля.
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label>Мито, походження ЄС</label>
+              <div class="unit-input"><input type="number" id="dutyEU" step="0.1" value="0"><span>%</span></div>
+            </div>
+            <div class="field">
+              <label>Мито, інші країни</label>
+              <div class="unit-input"><input type="number" id="dutyOther" step="0.1" value="10"><span>%</span></div>
+            </div>
+            <div class="field">
+              <label>ПДВ</label>
+              <div class="unit-input"><input type="number" id="vatRate" step="0.1" value="20"><span>%</span></div>
+            </div>
+            <div class="field">
+              <label>Акциз для електромобіля</label>
+              <div class="unit-input"><input type="number" id="exciseKwh" step="0.01" value="0"><span>EUR/кВт·год</span></div>
+            </div>
+          </div>
+
+          <table class="rates">
+            <thead><tr><th>Тип двигуна</th><th>Об'єм, см³</th><th>Ставка, EUR/см³</th></tr></thead>
+            <tbody>
+              <tr><td>Бензин</td><td>до 3000</td><td><input type="number" step="0.001" id="rPetrolLow" value="0.059"></td></tr>
+              <tr><td>Бензин</td><td>понад 3000</td><td><input type="number" step="0.001" id="rPetrolHigh" value="0.145"></td></tr>
+              <tr><td>Дизель</td><td>до 3500</td><td><input type="number" step="0.001" id="rDieselLow" value="0.059"></td></tr>
+              <tr><td>Дизель</td><td>понад 3500</td><td><input type="number" step="0.001" id="rDieselHigh" value="0.145"></td></tr>
+              <tr><td>Газ (LPG/CNG)</td><td>—</td><td><input type="number" step="0.001" id="rLpg" value="0.059"></td></tr>
+            </tbody>
+          </table>
+          <p class="hint">Для гібридів застосовується ставка відповідного двигуна внутрішнього згоряння, помножена на коефіцієнт нижче.</p>
+          <div class="field-grid" style="margin-top:8px">
+            <div class="field">
+              <label>Коефіцієнт для гібридів</label>
+              <input type="number" step="0.05" id="hybridFactor" value="0.5">
+            </div>
+          </div>
+
+          <table class="rates">
+            <thead><tr><th>Вік ТЗ від дати реєстрації</th><th>Віковий коефіцієнт</th></tr></thead>
+            <tbody>
+              <tr><td>до 5 років</td><td><input type="number" step="0.1" id="ageC1" value="1"></td></tr>
+              <tr><td>від 5 до 8 років</td><td><input type="number" step="0.1" id="ageC2" value="2"></td></tr>
+              <tr><td>від 8 до 10 років</td><td><input type="number" step="0.1" id="ageC3" value="3"></td></tr>
+              <tr><td>від 10 до 12 років</td><td><input type="number" step="0.1" id="ageC4" value="4"></td></tr>
+              <tr><td>від 12 до 15 років</td><td><input type="number" step="0.1" id="ageC5" value="5"></td></tr>
+            </tbody>
+          </table>
+          <p class="hint">Ввезення легкових авто віком понад 15 років в Україну обмежено законодавством — калькулятор лише рахує за верхнім коефіцієнтом і показує попередження.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Summary ledger -->
+    <div class="summary">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Митні платежі</h2>
+          <span class="panel-num">разом</span>
+        </div>
+        <div class="panel-body">
+          <div class="ledger-row"><span class="label">Митна вартість, грн</span><span class="val tabular" id="outCV">—</span></div>
+          <div class="ledger-row"><span class="label">Мито</span><span class="val tabular" id="outDuty">—</span></div>
+          <div class="ledger-row"><span class="label">Акциз</span><span class="val tabular" id="outExcise">—</span></div>
+          <div class="ledger-row"><span class="label">ПДВ</span><span class="val tabular" id="outVat">—</span></div>
+          <div class="ledger-total">
+            <span class="label">Разом до сплати</span>
+            <span class="val tabular" id="outTotalUah">— грн</span>
+          </div>
+          <p class="nbu-info" id="outNbuEquiv"></p>
+
+          <div class="usd-card">
+            <div class="label">Сума в USD за x-change-x.com (Рівне)</div>
+            <div class="val tabular" id="outUsdXchange">—</div>
+            <div class="sub" id="outUsdXchangeSub">Введіть курс обмінника вище, щоб отримати підсумок.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <p><strong>Довідково, не є податковою консультацією.</strong> Розрахунок орієнтовний і призначений для попередньої оцінки митних платежів на легковий автомобіль для особистого користування. Остаточну суму визначає митний орган на підставі поданої митної декларації. Дані автомобіля беріть з європейського техпаспорта (реєстраційного документа / Certificate of Conformity): поле A — VIN, B — дата першої реєстрації, D.1/D.3 — марка/модель, P.1 — робочий об'єм двигуна, P.3 — тип палива. Курс для нарахування митних платежів — офіційний курс <a href="https://bank.gov.ua/ua/markets/exchangerates" target="_blank" rel="noopener">НБУ</a>. Курс для перерахунку підсумкової суми в долари — курс обмінного пункту <a href="https://x-change-x.com/rivne/" target="_blank" rel="noopener">x-change-x.com (Рівне)</a>, який потрібно вносити вручну.</p>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* ---------- theme ---------- */
+  var root = document.documentElement;
+  var themeBtn = $("themeToggle");
+  function applyTheme(t){
+    if(t){ root.setAttribute("data-theme", t); } else { root.removeAttribute("data-theme"); }
+    themeBtn.textContent = (t === "dark") ? "☀️ Світла тема" : "🌙 Темна тема";
+  }
+  var savedTheme = localStorage.getItem("customsCalcTheme");
+  if(savedTheme){ applyTheme(savedTheme); }
+  themeBtn.addEventListener("click", function(){
+    var current = root.getAttribute("data-theme");
+    var next = current === "dark" ? "light" : "dark";
+    localStorage.setItem("customsCalcTheme", next);
+    applyTheme(next);
+  });
+
+  /* ---------- helpers ---------- */
+  function num(id){ var v = parseFloat($(id).value); return isNaN(v) ? 0 : v; }
+  function radioVal(name){
+    var els = document.getElementsByName(name);
+    for(var i=0;i<els.length;i++){ if(els[i].checked) return els[i].value; }
+    return null;
+  }
+  var uahFmt = new Intl.NumberFormat("uk-UA", {maximumFractionDigits:2, minimumFractionDigits:2});
+  var usdFmt = new Intl.NumberFormat("en-US", {maximumFractionDigits:2, minimumFractionDigits:2});
+
+  function ageInYears(dateStr){
+    if(!dateStr) return null;
+    var d = new Date(dateStr);
+    if(isNaN(d.getTime())) return null;
+    var now = new Date();
+    var years = (now - d) / (1000*60*60*24*365.25);
+    return years < 0 ? 0 : years;
+  }
+
+  function ageCoefficient(years){
+    if(years === null) return 1;
+    if(years <= 5) return num("ageC1");
+    if(years <= 8) return num("ageC2");
+    if(years <= 10) return num("ageC3");
+    if(years <= 12) return num("ageC4");
+    return num("ageC5"); // covers 12-15 and beyond (with warning shown separately)
+  }
+
+  function exciseRatePerCm3(fuelType, volume){
+    var hybridFactor = num("hybridFactor");
+    if(fuelType === "petrol" || fuelType === "hybrid-petrol"){
+      var rate = volume > 3000 ? num("rPetrolHigh") : num("rPetrolLow");
+      return fuelType === "hybrid-petrol" ? rate * hybridFactor : rate;
+    }
+    if(fuelType === "diesel" || fuelType === "hybrid-diesel"){
+      var rateD = volume > 3500 ? num("rDieselHigh") : num("rDieselLow");
+      return fuelType === "hybrid-diesel" ? rateD * hybridFactor : rateD;
+    }
+    if(fuelType === "lpg"){ return num("rLpg"); }
+    return 0; // electric handled separately
+  }
+
+  /* show/hide battery field */
+  $("fuelType").addEventListener("change", function(){
+    $("batteryField").hidden = ($("fuelType").value !== "electric");
+    recalc();
+  });
+
+  /* transport cost unit follows customs value currency */
+  document.getElementsByName("cvCurrency").forEach ? null : null;
+  Array.prototype.forEach.call(document.getElementsByName("cvCurrency"), function(el){
+    el.addEventListener("change", function(){
+      $("transportUnit").textContent = radioVal("cvCurrency");
+      recalc();
+    });
+  });
+
+  /* ---------- NBU fetch ---------- */
+  $("fetchNbu").addEventListener("click", function(){
+    var statusEl = $("nbuStatus");
+    statusEl.className = "status-msg";
+    statusEl.textContent = "Отримання курсу з bank.gov.ua…";
+    var usdUrl = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json";
+    var eurUrl = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=EUR&json";
+    Promise.all([
+      fetch(usdUrl).then(function(r){ return r.json(); }),
+      fetch(eurUrl).then(function(r){ return r.json(); })
+    ]).then(function(results){
+      var usd = results[0] && results[0][0];
+      var eur = results[1] && results[1][0];
+      if(usd && usd.rate){ $("nbuUsd").value = usd.rate.toFixed(4); }
+      if(eur && eur.rate){ $("nbuEur").value = eur.rate.toFixed(4); }
+      statusEl.className = "status-msg ok";
+      statusEl.textContent = "Отримано на " + (usd && usd.exchangedate ? usd.exchangedate : "сьогодні") + ".";
+      recalc();
+    }).catch(function(){
+      statusEl.className = "status-msg err";
+      statusEl.textContent = "Не вдалося отримати курс автоматично (мережа/CORS). Введіть курс вручну — bank.gov.ua/ua/markets/exchangerates.";
+    });
+  });
+
+  /* ---------- x-change-x fetch attempt ---------- */
+  $("fetchXchange").addEventListener("click", function(){
+    var statusEl = $("xchangeStatus");
+    statusEl.className = "status-msg";
+    statusEl.textContent = "Спроба отримати курс із x-change-x.com…";
+    fetch("https://x-change-x.com/rivne/").then(function(r){ return r.text(); }).then(function(html){
+      var match = html.match(/USD[\s\S]{0,80}?(\d{2}[.,]\d{1,2})[\s\S]{0,40}?(\d{2}[.,]\d{1,2})/i);
+      if(match){
+        $("xchangeBuy").value = parseFloat(match[1].replace(",", "."));
+        $("xchangeSell").value = parseFloat(match[2].replace(",", "."));
+        statusEl.className = "status-msg ok";
+        statusEl.textContent = "Курс зчитано автоматично — перевірте значення перед використанням.";
+        recalc();
+      } else {
+        throw new Error("not found");
+      }
+    }).catch(function(){
+      statusEl.className = "status-msg err";
+      statusEl.textContent = "Браузер заблокував автоматичне зчитування (CORS) — це очікувано для більшості сайтів. Відкрийте сторінку кнопкою вище і введіть курс вручну.";
+    });
+  });
+
+  /* ---------- age hint ---------- */
+  $("regDate").addEventListener("change", function(){
+    var years = ageInYears($("regDate").value);
+    var hint = $("ageHint");
+    var warn = $("topWarning");
+    if(years === null){
+      hint.textContent = "Вік автомобіля розраховується автоматично від дати першої реєстрації.";
+      warn.hidden = true;
+      return;
+    }
+    hint.textContent = "Вік автомобіля: приблизно " + years.toFixed(1) + " років.";
+    if(years > 15){
+      warn.hidden = false;
+      warn.innerHTML = "<strong>Увага</strong>Ввезення легкових автомобілів віком понад 15 років в Україну обмежено законодавством. Перевірте чинні обмеження перед розмитненням.";
+    } else {
+      warn.hidden = true;
+    }
+  });
+
+  /* ---------- main calculation ---------- */
+  function recalc(){
+    var engineVolume = num("engineVolume");
+    var fuelType = $("fuelType").value;
+    var years = ageInYears($("regDate").value);
+    var coeff = ageCoefficient(years);
+
+    var cv = num("customsValue");
+    var cvCurrency = radioVal("cvCurrency") || "EUR";
+    var transport = num("transportCost");
+    var nbuUsd = num("nbuUsd");
+    var nbuEur = num("nbuEur");
+    var originEU = $("originEU").value === "yes";
+
+    var cvBaseCurrencyTotal = cv + transport; // in cvCurrency
+    var rateForCv = cvCurrency === "EUR" ? nbuEur : nbuUsd;
+    var customsValueUAH = cvBaseCurrencyTotal * rateForCv;
+
+    var dutyRate = originEU ? num("dutyEU") : num("dutyOther");
+    var dutyUAH = customsValueUAH * dutyRate / 100;
+
+    var exciseEUR = 0;
+    if(fuelType === "electric"){
+      exciseEUR = num("batteryKwh") * num("exciseKwh");
+    } else {
+      exciseEUR = engineVolume * exciseRatePerCm3(fuelType, engineVolume) * coeff;
+    }
+    var exciseUAH = exciseEUR * nbuEur;
+
+    var vatBaseUAH = customsValueUAH + dutyUAH + exciseUAH;
+    var vatUAH = vatBaseUAH * num("vatRate") / 100;
+
+    var totalUAH = dutyUAH + exciseUAH + vatUAH;
+
+    $("outCV").textContent = uahFmt.format(customsValueUAH) + " ₴";
+    $("outDuty").textContent = uahFmt.format(dutyUAH) + " ₴";
+    $("outExcise").textContent = uahFmt.format(exciseUAH) + " ₴";
+    $("outVat").textContent = uahFmt.format(vatUAH) + " ₴";
+    $("outTotalUah").textContent = uahFmt.format(totalUAH) + " ₴";
+
+    if(nbuUsd > 0){
+      $("outNbuEquiv").textContent = "≈ " + usdFmt.format(totalUAH / nbuUsd) + " USD за курсом НБУ" + (nbuEur > 0 ? (" · ≈ " + usdFmt.format(totalUAH / nbuEur) + " EUR") : "");
+    } else {
+      $("outNbuEquiv").textContent = "";
+    }
+
+    var useWhich = radioVal("xchangeUse") || "sell";
+    var xRate = useWhich === "buy" ? num("xchangeBuy") : num("xchangeSell");
+    var usdOut = $("outUsdXchange");
+    var usdSub = $("outUsdXchangeSub");
+    if(xRate > 0 && totalUAH > 0){
+      usdOut.textContent = usdFmt.format(totalUAH / xRate) + " $";
+      usdSub.textContent = uahFmt.format(totalUAH) + " ₴ ÷ " + xRate.toFixed(2) + " грн/$ (курс " + (useWhich === "buy" ? "купівлі" : "продажу") + ", x-change-x.com, Рівне)";
+    } else {
+      usdOut.textContent = "—";
+      usdSub.textContent = "Введіть курс обмінника вище, щоб отримати підсумок.";
+    }
+  }
+
+  var form = document.querySelector(".wrap");
+  form.addEventListener("input", recalc);
+  form.addEventListener("change", recalc);
+
+  recalc();
+})();
+</script>
+</body>
+</html>
