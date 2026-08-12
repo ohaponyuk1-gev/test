@@ -341,9 +341,10 @@
               <div class="field span2">
                 <label>Який курс використати для підсумку в USD</label>
                 <div class="radio-row">
-                  <label><input type="radio" name="xchangeUse" value="sell" checked> Продаж</label>
-                  <label><input type="radio" name="xchangeUse" value="buy"> Купівля</label>
+                  <label><input type="radio" name="xchangeUse" value="buy" checked> Купівля</label>
+                  <label><input type="radio" name="xchangeUse" value="sell"> Продаж</label>
                 </div>
+                <p class="hint">За курсом купівлі USD рахується сума до сплати клієнтом — саме цей стовпець використовується у робочих розрахунках.</p>
               </div>
             </div>
             <div class="btn-row" style="margin-top:12px">
@@ -369,7 +370,7 @@
           <div class="field-grid">
             <div class="field">
               <label>Мито, походження ЄС</label>
-              <div class="unit-input"><input type="number" id="dutyEU" step="0.1" value="0"><span>%</span></div>
+              <div class="unit-input"><input type="number" id="dutyEU" step="0.1" value="10"><span>%</span></div>
             </div>
             <div class="field">
               <label>Мито, інші країни</label>
@@ -384,36 +385,30 @@
               <div class="unit-input"><input type="number" id="exciseKwh" step="0.01" value="0"><span>EUR/кВт·год</span></div>
             </div>
           </div>
+          <p class="hint">У практичних розрахунках мито застосовується 10% незалежно від походження — преференційні 0% для ЄС потребують підтвердженого сертифіката EUR.1, тому за замовчуванням обидва поля рівні. За наявності EUR.1 змініть поле «Мито, походження ЄС» на 0.</p>
 
           <table class="rates">
-            <thead><tr><th>Тип двигуна</th><th>Об'єм, см³</th><th>Ставка, EUR/см³</th></tr></thead>
+            <thead><tr><th>Тип двигуна</th><th>Об'єм</th><th>Ставка, EUR/см³</th></tr></thead>
             <tbody>
-              <tr><td>Бензин</td><td>до 3000</td><td><input type="number" step="0.001" id="rPetrolLow" value="0.059"></td></tr>
-              <tr><td>Бензин</td><td>понад 3000</td><td><input type="number" step="0.001" id="rPetrolHigh" value="0.145"></td></tr>
-              <tr><td>Дизель</td><td>до 3500</td><td><input type="number" step="0.001" id="rDieselLow" value="0.059"></td></tr>
-              <tr><td>Дизель</td><td>понад 3500</td><td><input type="number" step="0.001" id="rDieselHigh" value="0.145"></td></tr>
-              <tr><td>Газ (LPG/CNG)</td><td>—</td><td><input type="number" step="0.001" id="rLpg" value="0.059"></td></tr>
+              <tr><td>Бензин</td><td>до 3000 см³</td><td><input type="number" step="0.001" id="rPetrolLow" value="0.05"></td></tr>
+              <tr><td>Бензин</td><td>понад 3000 см³</td><td><input type="number" step="0.001" id="rPetrolHigh" value="0.1"></td></tr>
+              <tr><td>Дизель</td><td>до 3500 см³</td><td><input type="number" step="0.001" id="rDieselLow" value="0.075"></td></tr>
+              <tr><td>Дизель</td><td>понад 3500 см³</td><td><input type="number" step="0.001" id="rDieselHigh" value="0.15"></td></tr>
+              <tr><td>Газ (LPG/CNG)</td><td>—</td><td><input type="number" step="0.001" id="rLpg" value="0.05"></td></tr>
             </tbody>
           </table>
-          <p class="hint">Для гібридів застосовується ставка відповідного двигуна внутрішнього згоряння, помножена на коефіцієнт нижче.</p>
+          <p class="hint">Ставки «до 3000/3500 см³» (0,05 бензин / 0,075 дизель EUR за 1 см³, тобто 50 і 75 EUR за 1000 см³) звірені з фактичними розрахунками. Ставки «понад» — розрахункове подвоєння за типовою логікою прогресії, окремо не звірялись: перевірте перед застосуванням до авто з великим об'ємом двигуна. Для гібридів застосовується ставка відповідного двигуна внутрішнього згоряння, помножена на коефіцієнт нижче.</p>
           <div class="field-grid" style="margin-top:8px">
             <div class="field">
               <label>Коефіцієнт для гібридів</label>
               <input type="number" step="0.05" id="hybridFactor" value="0.5">
             </div>
+            <div class="field">
+              <label>Максимальний вік для розрахунку акцизу</label>
+              <div class="unit-input"><input type="number" step="1" id="ageCap" value="15"><span>років</span></div>
+            </div>
           </div>
-
-          <table class="rates">
-            <thead><tr><th>Вік ТЗ від дати реєстрації</th><th>Віковий коефіцієнт</th></tr></thead>
-            <tbody>
-              <tr><td>до 5 років</td><td><input type="number" step="0.1" id="ageC1" value="1"></td></tr>
-              <tr><td>від 5 до 8 років</td><td><input type="number" step="0.1" id="ageC2" value="2"></td></tr>
-              <tr><td>від 8 до 10 років</td><td><input type="number" step="0.1" id="ageC3" value="3"></td></tr>
-              <tr><td>від 10 до 12 років</td><td><input type="number" step="0.1" id="ageC4" value="4"></td></tr>
-              <tr><td>від 12 до 15 років</td><td><input type="number" step="0.1" id="ageC5" value="5"></td></tr>
-            </tbody>
-          </table>
-          <p class="hint">Ввезення легкових авто віком понад 15 років в Україну обмежено законодавством — калькулятор лише рахує за верхнім коефіцієнтом і показує попередження.</p>
+          <p class="hint">Віковий коефіцієнт — це кількість повних років з дати першої реєстрації (не сходинки), з обмеженням значенням вище. Наприклад, авто віком 9 років рахується з коефіцієнтом 9; авто віком 21 рік — з коефіцієнтом 15 (максимум). Ввезення легкових авто віком понад 15 років в Україну обмежено законодавством — калькулятор лише рахує за граничним коефіцієнтом і показує попередження.</p>
         </div>
       </div>
 
@@ -442,6 +437,15 @@
             <div class="val tabular" id="outUsdXchange">—</div>
             <div class="sub" id="outUsdXchangeSub">Введіть курс обмінника вище, щоб отримати підсумок.</div>
           </div>
+
+          <details class="adv">
+            <summary>+ Додаткові послуги (не є митним платежем)</summary>
+            <div class="field" style="margin-top:10px">
+              <label>Послуги з оформлення, USD</label>
+              <div class="unit-input"><input type="number" id="serviceFeeUsd" min="0" step="1" value="0"><span>$</span></div>
+            </div>
+            <div class="ledger-row" style="margin-top:6px"><span class="label">Кінцева сума до сплати клієнтом</span><span class="val tabular" id="outFinalUsd">—</span></div>
+          </details>
         </div>
       </div>
     </div>
@@ -495,12 +499,12 @@
   }
 
   function ageCoefficient(years){
-    if(years === null) return 1;
-    if(years <= 5) return num("ageC1");
-    if(years <= 8) return num("ageC2");
-    if(years <= 10) return num("ageC3");
-    if(years <= 12) return num("ageC4");
-    return num("ageC5"); // covers 12-15 and beyond (with warning shown separately)
+    // Ставка застосовується за кожен повний рік з дати першої реєстрації,
+    // з обмеженням значенням "Максимальний вік для розрахунку акцизу" (типово 15).
+    if(years === null) return 0;
+    var fullYears = Math.floor(years);
+    var cap = num("ageCap");
+    return Math.min(fullYears, cap);
   }
 
   function exciseRatePerCm3(fuelType, volume){
@@ -643,17 +647,22 @@
       $("outNbuEquiv").textContent = "";
     }
 
-    var useWhich = radioVal("xchangeUse") || "sell";
+    var useWhich = radioVal("xchangeUse") || "buy";
     var xRate = useWhich === "buy" ? num("xchangeBuy") : num("xchangeSell");
     var usdOut = $("outUsdXchange");
     var usdSub = $("outUsdXchangeSub");
+    var usdXchange = 0;
     if(xRate > 0 && totalUAH > 0){
-      usdOut.textContent = usdFmt.format(totalUAH / xRate) + " $";
+      usdXchange = totalUAH / xRate;
+      usdOut.textContent = usdFmt.format(usdXchange) + " $";
       usdSub.textContent = uahFmt.format(totalUAH) + " ₴ ÷ " + xRate.toFixed(2) + " грн/$ (курс " + (useWhich === "buy" ? "купівлі" : "продажу") + ", x-change-x.com, Рівне)";
     } else {
       usdOut.textContent = "—";
       usdSub.textContent = "Введіть курс обмінника вище, щоб отримати підсумок.";
     }
+
+    var serviceFee = num("serviceFeeUsd");
+    $("outFinalUsd").textContent = usdXchange > 0 ? (usdFmt.format(usdXchange + serviceFee) + " $") : "—";
   }
 
   var form = document.querySelector(".wrap");
