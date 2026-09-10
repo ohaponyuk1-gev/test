@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AP Dealers Hub — фінансова модель</title>
+<meta name="description" content="Внутрішній інструмент AP Dealers Hub для обліку інвесторів, дилерів, авансів, авто (VIN), каси, PROCAR/VAT, курсових різниць і прогнозу ліквідності.">
+<style>
+  :root{
+    --paper:#eef1f5;
+    --paper-raised:#ffffff;
+    --ink:#1b2a3a;
+    --ink-soft:#4c5c70;
+    --ink-faint:#7d8ba0;
+    --line:#c7d0da;
+    --line-soft:#dde3ea;
+    --accent:#2f5fa8;
+    --accent-ink:#ffffff;
+    --money:#1f6f5c;
+    --money-soft:#e4f0ec;
+    --warn:#8a5a10;
+    --warn-bg:#fbf1de;
+    --crit:#9c2b2b;
+    --crit-bg:#fbe9e9;
+    --focus:#2f6fb3;
+    --code-bg:#e4e9ef;
+    --shadow: 0 1px 2px rgba(27,42,58,.06), 0 6px 20px rgba(27,42,58,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#141c26; --paper-raised:#1b2530; --ink:#e7ecf2; --ink-soft:#aab6c6; --ink-faint:#7d8ba0;
+      --line:#334154; --line-soft:#28323f; --accent:#6cabe8; --accent-ink:#0d1622;
+      --money:#5fc3a6; --money-soft:#1c3530; --warn:#e3b361; --warn-bg:#3a2e17;
+      --crit:#e0716a; --crit-bg:#3a1f1d; --focus:#6cabe8; --code-bg:#232d3a;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#141c26; --paper-raised:#1b2530; --ink:#e7ecf2; --ink-soft:#aab6c6; --ink-faint:#7d8ba0;
+    --line:#334154; --line-soft:#28323f; --accent:#6cabe8; --accent-ink:#0d1622;
+    --money:#5fc3a6; --money-soft:#1c3530; --warn:#e3b361; --warn-bg:#3a2e17;
+    --crit:#e0716a; --crit-bg:#3a1f1d; --focus:#6cabe8; --code-bg:#232d3a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5; font-size:14.5px;
+  }
+  h1,h2,h3,h4{ font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; font-weight:600; color:var(--ink); margin:0 0 10px; }
+  .mono{ font-family:"SF Mono","Cascadia Code",Consolas,"Roboto Mono",monospace; font-variant-numeric:tabular-nums; }
+  .muted{ color:var(--ink-faint); }
+  .small{ font-size:12px; }
+  .hint{ color:var(--ink-soft); font-size:13px; margin:0 0 12px; }
+
+  .topbar{
+    background:var(--paper-raised); border-bottom:1px solid var(--line);
+    padding:16px 20px; display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; justify-content:space-between;
+    position:sticky; top:0; z-index:20;
+  }
+  .eyebrow{ text-transform:uppercase; letter-spacing:.08em; font-size:11px; color:var(--accent); font-weight:700; }
+  .topbar h1{ font-size:20px; margin:2px 0 0; }
+  .topbar-controls{ display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; }
+  .tiny-label{ display:flex; flex-direction:column; gap:2px; font-size:11px; color:var(--ink-soft); }
+  .tiny-label select, .tiny-label input{ font-size:13px; padding:5px 6px; border-radius:6px; border:1px solid var(--line); background:var(--paper); color:var(--ink); }
+  .topbar-controls button, .btn-file{
+    border:1px solid var(--line); background:var(--paper); color:var(--ink-soft);
+    border-radius:8px; padding:6px 10px; font-size:12.5px; cursor:pointer; white-space:nowrap;
+  }
+  .btn-file{ position:relative; overflow:hidden; display:inline-block; }
+  .btn-file input{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .topbar-controls button:hover, .btn-file:hover{ color:var(--ink); border-color:var(--ink-faint); }
+
+  .tabs{ display:flex; flex-wrap:wrap; gap:4px; padding:10px 20px; background:var(--paper-raised); border-bottom:1px solid var(--line); position:sticky; top:78px; z-index:19; }
+  .tab-btn{
+    border:1px solid transparent; background:transparent; color:var(--ink-soft);
+    border-radius:7px; padding:6px 10px; font-size:12.5px; cursor:pointer; letter-spacing:.02em;
+  }
+  .tab-btn:hover{ background:var(--line-soft); }
+  .tab-btn.active{ background:var(--accent); color:var(--accent-ink); font-weight:600; }
+
+  .content{ max-width:1280px; margin:0 auto; padding:20px; display:flex; flex-direction:column; gap:16px; }
+
+  .card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:16px 18px; box-shadow:var(--shadow); }
+  .card h3{ font-size:16px; }
+  .card h4{ font-size:13px; margin-top:14px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); }
+
+  .grid-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; }
+  .stat-card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:12px 14px; box-shadow:var(--shadow); }
+  .stat-label{ font-size:11.5px; color:var(--ink-faint); margin-bottom:4px; }
+  .stat-value{ font-size:18px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .stat-card.pos .stat-value{ color:var(--money); }
+  .stat-card.neg .stat-value{ color:var(--crit); }
+
+  .inline-form{ display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:14px; padding-bottom:14px; border-bottom:1px dashed var(--line); }
+  .inline-form.car-form{ display:block; }
+  .inline-form label{ display:flex; flex-direction:column; gap:3px; font-size:11.5px; color:var(--ink-soft); min-width:130px; }
+  .inline-form input, .inline-form select, .inline-form textarea{
+    font-size:13px; padding:6px 8px; border-radius:6px; border:1px solid var(--line); background:var(--paper); color:var(--ink); min-width:130px;
+  }
+  .grid-fields{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:10px; }
+  .form-actions{ display:flex; gap:8px; }
+  .btn-primary{ background:var(--accent); color:var(--accent-ink); border:none; border-radius:7px; padding:8px 14px; font-size:13px; cursor:pointer; font-weight:600; }
+  .form-actions button[type="button"]{ border:1px solid var(--line); background:transparent; color:var(--ink-soft); border-radius:7px; padding:8px 12px; font-size:13px; cursor:pointer; }
+
+  .table-wrap{ overflow-x:auto; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; }
+  th,td{ padding:6px 8px; border-bottom:1px solid var(--line-soft); text-align:left; white-space:nowrap; }
+  th{ color:var(--ink-soft); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; }
+  tr.row-crit td{ background:var(--crit-bg); }
+  .row-actions{ white-space:nowrap; }
+  .row-actions button{ border:1px solid var(--line); background:var(--paper); color:var(--ink-soft); border-radius:5px; padding:2px 6px; cursor:pointer; margin-right:4px; font-size:12px; }
+  .costs-table th,.costs-table td{ white-space:normal; }
+  .total-row td{ font-weight:700; border-top:2px solid var(--line); }
+
+  .pos{ color:var(--money); }
+  .neg{ color:var(--crit); }
+  .warn-line{ color:var(--warn); background:var(--warn-bg); padding:8px 10px; border-radius:7px; font-size:13px; }
+  .ok-line{ color:var(--money); font-size:13px; }
+  .warn-list{ margin:0; padding-left:18px; font-size:13px; }
+  .warn-list li{ margin-bottom:5px; }
+  .warn-list li.lvl-crit{ color:var(--crit); font-weight:600; }
+  .warn-list li.lvl-warn{ color:var(--warn); }
+  .warn-list li.lvl-info{ color:var(--ink-soft); }
+
+  @media (max-width:700px){
+    .topbar{ padding:14px 16px; }
+    .tabs{ top:auto; position:static; padding:8px 16px; overflow-x:auto; flex-wrap:nowrap; }
+    .content{ padding:14px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <p style="padding:24px;color:#888;">Завантаження… якщо цей напис не зникає — увімкніть JavaScript у браузері.</p>
+</div>
+<script src="./ap-dealers-hub.core.js"></script>
+<script src="./ap-dealers-hub.ui.js"></script>
+</body>
+</html>
