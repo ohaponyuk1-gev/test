@@ -109,7 +109,11 @@ function loadDB(){
     const raw = localStorage.getItem(STORAGE_KEY);
     if(raw){ return JSON.parse(raw); }
   }catch(e){ console.warn('DB load failed', e); }
-  return seedDB();
+  // За замовчуванням — чистий аркуш; приклад з ТЗ (Kia Carnival) лишається
+  // доступним окремою кнопкою «Приклад з ТЗ» у шапці, для довідки.
+  DB = emptyDB();
+  saveDB();
+  return DB;
 }
 function saveDB(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
