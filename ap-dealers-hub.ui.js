@@ -402,8 +402,24 @@ function carSubmit(form, editId){
 /* ---------------- ДІЇ (не-CRUD) ---------------- */
 const ACTIONS = {
   cancelEdit(){ state.editing = {entity:null,id:null}; render(); },
-  exportJson(){
+  async exportJson(){
     const blob = new Blob([JSON.stringify(A.DB,null,2)], {type:'application/json'});
+    // У переглядачі Artifact сторінка не може сама ініціювати завантаження
+    // файлу — тільки віддати його користувачу через capability "downloads".
+    // Поза Artifact (файл відкрито прямо в браузері) window.claude відсутній,
+    // тож працює звичайне посилання-завантаження.
+    if(window.claude && window.claude.use){
+      try{
+        const downloads = await window.claude.use('downloads');
+        if(downloads){
+          await downloads.save({filename:'ap-dealers-hub-data.json', data:blob});
+          return;
+        }
+      }catch(e){
+        if(e && e.code!=='declined') alert('Не вдалося зберегти файл: ' + (e.message||e.code||e));
+        return;
+      }
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href=url; a.download='ap-dealers-hub-data.json'; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 2000);
