@@ -27,6 +27,15 @@ const ROLE_LABELS = {owner:'Власник (повний доступ)', cashier
 /* ---------------- ГЕНЕРИЧНІ ПОЛЯ/ФОРМИ ---------------- */
 function dealerOptions(){ return A.DB.dealers.map(d=>({value:d.id,label:d.name})); }
 function carOptions(){ return A.DB.cars.map(c=>({value:c.vin,label:`${c.vin} — ${c.model||c.make||''}`})); }
+// Той самий список VIN, але з підсвіченим залишком до оплати PROCAR прямо в назві
+// пункту — щоб було видно "скільки треба на цей VIN", не переключаючись на іншу вкладку.
+function carOptionsWithProcar(){
+  return A.DB.cars.map(c=>{
+    const {procarRemaining} = A.carProcarStatus(c);
+    const tag = procarRemaining>0.01 ? `— на PROCAR ще ${money(procarRemaining)}` : '— PROCAR закрито';
+    return {value:c.vin, label:`${c.vin} — ${c.model||c.make||''} (${tag})`};
+  });
+}
 function loanOptions(){ return A.DB.investors.map(l=>({value:l.id,label:`${l.id} — ${l.investor} (${money(l.amount)})`})); }
 function advanceOptions(){ return A.DB.dealerAdvances.map(a=>{ const d=byId(A.DB.dealers,a.dealerId); return {value:a.id,label:`${a.id} — ${d?d.name:'?'} (${money(a.amount)}, ${a.date})`}; }); }
 function cashboxOptions(){ return A.DB.cashboxes.map(c=>({value:c.id,label:c.name})); }
@@ -111,7 +120,7 @@ const DEFS = {
   ]},
   investorAllocations: {array:'investorAllocations', idPrefix:'IA', fields:[
     {key:'loanId', label:'Позика', type:'select', optionsFn:loanOptions, required:true},
-    {key:'vin', label:'VIN', type:'select', optionsFn:carOptions, required:true},
+    {key:'vin', label:'VIN', type:'select', optionsFn:carOptionsWithProcar, required:true},
     {key:'amount', label:'Сума, $', type:'number', required:true},
     {key:'date', label:'Дата закріплення', type:'date', required:true, default:todayStr},
   ]},
@@ -123,7 +132,7 @@ const DEFS = {
   ]},
   dealerAdvanceAllocations: {array:'dealerAdvanceAllocations', idPrefix:'DAA', fields:[
     {key:'advanceId', label:'Аванс', type:'select', optionsFn:advanceOptions, required:true},
-    {key:'vin', label:'VIN', type:'select', optionsFn:carOptions, required:true},
+    {key:'vin', label:'VIN', type:'select', optionsFn:carOptionsWithProcar, required:true},
     {key:'amount', label:'Сума, $', type:'number', required:true},
     {key:'date', label:'Дата закріплення', type:'date', required:true, default:todayStr},
   ]},
@@ -550,6 +559,20 @@ function renderCashTable(rows, compact){
   </tr>`).join('')}</tbody></table></div>`;
 }
 function cashboxName(id){ const c = byId(A.DB.cashboxes,id); return c?c.name:'—'; }
+// Компактна підказка "скільки ще треба на PROCAR по кожному VIN" — щоб було
+// видно одразу над формою розподілу, без переключення на вкладку PROCAR/VAT.
+function procarNeedHint(){
+  const rows = A.DB.cars.map(c=>({c, st:A.carProcarStatus(c)}));
+  if(!rows.length) return '';
+  return `<div class="card procar-hint">
+    <h4>Скільки ще треба перерахувати на PROCAR по кожному авто</h4>
+    <div class="table-wrap"><table><thead><tr><th>VIN</th><th>Потрібно PROCAR</th><th>Вже переказано</th><th>Залишок</th></tr></thead>
+    <tbody>${rows.map(({c,st})=>`<tr class="${st.procarRemaining>0.01?'row-crit':''}">
+      <td class="mono">${esc(c.vin)}</td><td>${money(st.procarNeeded)}</td><td>${money(st.procarPaid)}</td>
+      <td class="${st.procarRemaining>0.01?'neg':'pos'}">${money(st.procarRemaining)}</td>
+    </tr>`).join('')}</tbody></table></div>
+  </div>`;
+}
 function renderCash(){
   const editRecord = state.editing.entity==='cashTransactions' ? byId(A.DB.cashTransactions, state.editing.id) : null;
   const rows = A.DB.cashTransactions.slice().sort((a,b)=>b.date.localeCompare(a.date));
@@ -589,6 +612,7 @@ function renderInvestors(){
   <div class="card">
     <h3>Розподіл коштів інвесторів по VIN</h3>
     <p class="hint">Один внесок може фінансувати кілька авто; один VIN може фінансуватись кількома інвесторами. Розподіл — вручну.</p>
+    ${procarNeedHint()}
     ${crudFormAuto(DEFS.investorAllocations)}
     ${crudTable(DEFS.investorAllocations, [
       {label:'Позика', render:r=>esc(r.loanId)},
@@ -709,6 +733,7 @@ function renderDealers(){
     ])}
   </div>
   <div class="card"><h3>Закріплення авансу за VIN</h3>
+    ${procarNeedHint()}
     ${crudFormAuto(DEFS.dealerAdvanceAllocations)}
     ${crudTable(DEFS.dealerAdvanceAllocations, [
       {label:'Аванс', render:r=>esc(r.advanceId)},

@@ -339,6 +339,23 @@ function cashboxBalance(cashboxId, asOf){
 function totalCash(asOf){
   return DB.cashboxes.reduce((s,c)=>s+cashboxBalance(c.id, asOf),0);
 }
+function findProcarCashbox(){
+  return DB.cashboxes.find(c=>c.name.toUpperCase().includes('PROCAR'));
+}
+
+// Скільки треба (і скільки вже) перерахувати на PROCAR по конкретному VIN —
+// щоб було видно одразу при розподілі коштів, без переключення на іншу вкладку.
+// Потреба = чиста вартість авто + аукц. збір + дилер Корея + фрахт (те, що
+// реально йде постачальнику; переказ/страхування/комісія/Україна — не сюди).
+function carProcarStatus(car){
+  const procarNeeded = ['netValue','auctionFee','dealerKorea','freight']
+    .reduce((s,k)=>s+costVal(car,k,'plan'),0);
+  const box = findProcarCashbox();
+  const procarPaid = box ? DB.cashTransactions
+    .filter(t=>t.type==='expense' && t.cashboxId===box.id && t.vin===car.vin)
+    .reduce((s,t)=>s+num(t.amount),0) : 0;
+  return {procarNeeded, procarPaid, procarRemaining: Math.max(0, procarNeeded-procarPaid)};
+}
 
 function dealerAggregates(dealer, asOf){
   const cars = DB.cars.filter(c=>c.dealerId===dealer.id);
@@ -522,7 +539,7 @@ window.APDH = {
   loanSchedule, allInvestorInterestAccrued, costVal,
   totalAdvanceForVin, totalInvestorAllocForVin, totalDealerPaidForVin,
   carFinance, carActualInvestorCost, findFullyPaidDate, carEconomics,
-  cashboxBalance, totalCash, dealerAggregates, vatProfitTotal, fxProfitTotal,
+  cashboxBalance, totalCash, findProcarCashbox, carProcarStatus, dealerAggregates, vatProfitTotal, fxProfitTotal,
   overheadInterest, operatingExpensesTotal, netProfit,
   computeWarnings, labelFor, cashFlowForecast,
 };
