@@ -517,6 +517,12 @@ function statCard(label, value, cls){
   return `<div class="stat-card ${cls||''}"><div class="stat-label">${esc(label)}</div><div class="stat-value">${value}</div></div>`;
 }
 function dealerName(id){ const d = byId(A.DB.dealers,id); return d?d.name:'—'; }
+// Три колонки-ідентифікатори перед VIN у довгих фінансових таблицях — по
+// самому VIN авто важко впізнати, з КПК/маркою/моделлю пошук набагато швидший.
+function carIdCells(c){
+  return `<td>${esc(c.kpk)}</td><td>${esc(c.make)}</td><td>${esc(c.modelName||c.model)}</td><td class="mono">${esc(c.vin)}</td>`;
+}
+const CAR_ID_HEADERS = '<th>КПК</th><th>Марка</th><th>Модель</th><th>VIN</th>';
 
 /* ---------------- КУПІВЛЯ АВТО ---------------- */
 function renderPurchase(){
@@ -646,14 +652,14 @@ function renderFinancing(){
     <h3>Планове / фактичне фінансування по VIN</h3>
     <p class="hint">Планове фінансування = (потреба у фінансуванні) × ${A.DB.settings.standardMonthlyRatePct}%/міс × ${A.DB.settings.standardFinancingMonths} міс. Розраховується на ПЛАН-значеннях витрат, тому не зростає, якщо факт дорожчий (п.12 ТЗ), але зменшується при додаткових авансах дилера (п.10-11).</p>
     <div class="table-wrap"><table><thead><tr>
-      <th>VIN</th><th>База фінансування</th><th>Аванс дилера</th><th>Потреба у фінансуванні</th>
+      ${CAR_ID_HEADERS}<th>База фінансування</th><th>Аванс дилера</th><th>Потреба у фінансуванні</th>
       <th>Планове фінансування</th><th>Економія від авансу</th><th>Факт. вартість інв. коштів</th><th>Різниця (план−факт)</th>
       <th>Ціна дилеру (рахунок)</th><th>Ціна в Україні (довідково)</th>
     </tr></thead><tbody>
     ${rows.map(({c,fin})=>{
       const {actualInvestorCost} = A.carActualInvestorCost(c, asOf);
       const diff = fin.plannedFinancingCost - actualInvestorCost;
-      return `<tr><td class="mono">${esc(c.vin)}</td><td>${money(fin.financingBase)}</td><td>${money(fin.totalAdvance)}</td>
+      return `<tr>${carIdCells(c)}<td>${money(fin.financingBase)}</td><td>${money(fin.totalAdvance)}</td>
       <td>${money(fin.neededFinancing)}</td><td>${money(fin.plannedFinancingCost)}</td><td>${money(fin.financingEconomy)}</td>
       <td>${money(actualInvestorCost)}</td><td class="${diff<0?'neg':'pos'}">${money(diff)}</td>
       <td>${money(fin.dealerPrice)}</td><td class="muted">${money(fin.ukrainePrice)}</td></tr>`;
@@ -671,11 +677,11 @@ function renderEconomics(){
     <h3>Економіка кожного автомобіля</h3>
     <p class="hint">«Ціна дилеру» — це те, що ми виставляємо в рахунку (без розмитнення/сертифікації/МРЕО — дилер оплачує їх сам, напряму). «Ціна в Україні» — довідкова сума «під ключ» з урахуванням цих трьох статей, для рішення дилера про купівлю.</p>
     <div class="table-wrap"><table><thead><tr>
-      <th>VIN</th><th>Дилер</th><th>Усі витрати (план)</th><th>Ціна дилеру (рахунок)</th><th>Ціна в Україні (довідково)</th><th>Отримано</th><th>Борг дилера</th>
+      ${CAR_ID_HEADERS}<th>Дилер</th><th>Усі витрати (план)</th><th>Ціна дилеру (рахунок)</th><th>Ціна в Україні (довідково)</th><th>Отримано</th><th>Борг дилера</th>
       <th>Комісія AP</th><th>Фінрезультат</th><th>Прибуток по авто</th><th>Прострочено</th>
     </tr></thead><tbody>
     ${rows.map(({c,eco})=>`<tr class="${eco.isOverdue?'row-crit':''}">
-      <td class="mono">${esc(c.vin)}</td><td>${esc(dealerName(c.dealerId))}</td>
+      ${carIdCells(c)}<td>${esc(dealerName(c.dealerId))}</td>
       <td>${money(eco.totalCostPlan)}</td><td>${money(eco.dealerPrice)}</td><td class="muted">${money(eco.ukrainePrice)}</td><td>${money(eco.paid)}</td>
       <td class="${eco.balanceDue>0.01?'neg':''}">${money(eco.balanceDue)}</td>
       <td>${money(eco.commission)}</td>
