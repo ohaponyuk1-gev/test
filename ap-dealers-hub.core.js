@@ -44,6 +44,12 @@ const COST_CATEGORIES = [
 ];
 const FINANCING_KEYS = COST_CATEGORIES.filter(c=>c.financing).map(c=>c.key);
 const ALL_COST_KEYS = COST_CATEGORIES.map(c=>c.key);
+// Розмитнення/сертифікація/МРЕО дилер оплачує сам, напряму — вони НЕ входять
+// у рахунок AP Dealers Hub дилеру, а показуються лише довідково як частина
+// повної ціни авто "під ключ" в Україні (щоб дилер міг прийняти рішення про
+// купівлю, бачачи всю суму, а не тільки нашу частину).
+const UKRAINE_LOCAL_KEYS = ['customs','certification','mreo'];
+const BILLABLE_COST_KEYS = ALL_COST_KEYS.filter(k=>!UKRAINE_LOCAL_KEYS.includes(k));
 
 const INCOME_CATEGORIES = ['Внесок інвестора','Внесок Олега','Внесок Сергія','Аванс дилера','Остаточна оплата дилера','VAT','Інший прихід'];
 const EXPENSE_CATEGORIES = ['Купівля автомобіля','Аукціон','Дилер Корея','Переказ коштів','Фрахт','Брокер','Страхування','Повернення інвестору','Відсотки','Зарплата','Офіс','Реклама','Податки','Банківські витрати','Інші витрати'];
@@ -151,7 +157,7 @@ function seedDB(){
 
   DB.dealerAdvanceAllocations.push({id:nextId('DAA'), advanceId:advId, vin, amount:10000, date:'2026-06-01'});
   DB.investorAllocations.push({id:nextId('IA'), loanId:invId, vin, amount:14409.21, date:'2026-06-01'});
-  DB.dealerPayments.push({id:nextId('DP'), dealerId, vin, date:'2026-09-09', amount:22546.85, note:'Остаточний розрахунок (приблизно, авто-приклад)'});
+  DB.dealerPayments.push({id:nextId('DP'), dealerId, vin, date:'2026-09-09', amount:15417.85, note:'Остаточний розрахунок за рахунком AP (без розмитнення/сертифікації/МРЕО — дилер оплачує їх сам напряму)'});
 
   // Каса — ілюстративні рухи грошей
   DB.cashTransactions.push(
@@ -161,7 +167,7 @@ function seedDB(){
     {id:nextId('CT'), date:'2026-06-03', type:'expense', category:'Аукціон', amount:20505.81+300.75, cashboxId:'cb-procar', cashier:'Оля', vin, note:'Оплата авто + аукціонний збір'},
     {id:nextId('CT'), date:'2026-06-03', type:'expense', category:'Дилер Корея', amount:390, cashboxId:'cb-procar', cashier:'Оля', vin, note:''},
     {id:nextId('CT'), date:'2026-06-05', type:'expense', category:'Фрахт', amount:2100, cashboxId:'cb-procar', cashier:'Оля', vin, note:''},
-    {id:nextId('CT'), date:'2026-09-09', type:'income', category:'Остаточна оплата дилера', amount:22546.85, cashboxId:'cb-main', cashier:'Оля', dealerId, vin, note:''}
+    {id:nextId('CT'), date:'2026-09-09', type:'income', category:'Остаточна оплата дилера', amount:15417.85, cashboxId:'cb-main', cashier:'Оля', dealerId, vin, note:''}
   );
 
   saveDB();
@@ -247,10 +253,16 @@ function carFinance(car){
   const rate = num(DB.settings.standardMonthlyRatePct)/100;
   const months = num(DB.settings.standardFinancingMonths);
   const plannedFinancingCost = neededFinancing * rate * months;
-  const financingEconomy = Math.min(totalAdvance, financingBase) * rate * months;
+  const financingEconomy = Math.round(Math.min(totalAdvance, financingBase) * rate * months);
 
   const totalCostPlan = ALL_COST_KEYS.reduce((s,k)=>s+costVal(car,k,'plan'),0);
-  const dealerPrice = totalCostPlan + plannedFinancingCost - totalAdvance;
+  const ukraineLocalCostPlan = UKRAINE_LOCAL_KEYS.reduce((s,k)=>s+costVal(car,k,'plan'),0);
+  const billableCostPlan = totalCostPlan - ukraineLocalCostPlan;
+  // dealerPrice — те, що дилер платить AP Dealers Hub (без розмитнення/сертифікації/МРЕО,
+  // це він оплачує сам напряму). ukrainePrice — повна довідкова ціна авто "під ключ" в
+  // Україні, яку дилеру показують для рішення про купівлю, але це не рахунок.
+  const dealerPrice = billableCostPlan + plannedFinancingCost - totalAdvance;
+  const ukrainePrice = dealerPrice + ukraineLocalCostPlan;
 
   const paid = totalAdvance + totalDealerPaidForVin(car.vin);
   const balanceDue = dealerPrice - totalDealerPaidForVin(car.vin); // аванс вже врахований в dealerPrice
@@ -260,7 +272,7 @@ function carFinance(car){
   const overdueDays = dueDate ? Math.max(0, daysBetween(dueDate, todayStr())) : 0;
 
   return {financingBase, totalAdvance, neededFinancing, plannedFinancingCost, financingEconomy,
-          totalCostPlan, dealerPrice, paid, balanceDue, dueDate, isOverdue, overdueDays};
+          totalCostPlan, dealerPrice, ukrainePrice, paid, balanceDue, dueDate, isOverdue, overdueDays};
 }
 
 // Фактична вартість інвесторських коштів для конкретного VIN: нараховуємо
@@ -501,7 +513,8 @@ function cashFlowForecast(asOf){
 /* export to window for UI layer */
 window.APDH = {
   num, money, pct, esc, todayStr, toDate, daysBetween, addDays, clampDate, byId,
-  COST_CATEGORIES, FINANCING_KEYS, ALL_COST_KEYS, INCOME_CATEGORIES, EXPENSE_CATEGORIES,
+  COST_CATEGORIES, FINANCING_KEYS, ALL_COST_KEYS, UKRAINE_LOCAL_KEYS, BILLABLE_COST_KEYS,
+  INCOME_CATEGORIES, EXPENSE_CATEGORIES,
   OPERATING_EXPENSE_CATEGORIES, CAR_STATUSES,
   nextId,
   get DB(){ return DB; }, set DB(v){ DB=v; },

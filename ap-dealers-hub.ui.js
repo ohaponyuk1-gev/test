@@ -450,6 +450,11 @@ function renderDashboard(){
     ${statCard('Остання покупка', lastCar? `${lastCar.vin}<br><span class="muted small">${lastCar.model||''}, ${dealerName(lastCar.dealerId)}</span>` : '—')}
   </div>
   <div class="grid-cards">
+    ${statCard('Планова ціна дилерам (рахунки)', money(A.DB.cars.reduce((s,c)=>s+A.carFinance(c).dealerPrice,0)))}
+    ${statCard('Планова ціна в Україні (довідково)', money(A.DB.cars.reduce((s,c)=>s+A.carFinance(c).ukrainePrice,0)))}
+    ${statCard('Очікуємо від дилерів', money(A.DB.cars.reduce((s,c)=>s+A.carFinance(c).balanceDue,0)))}
+  </div>
+  <div class="grid-cards">
     ${statCard('Загальна каса (USD)', money(cash.total))}
     ${statCard('Баланс PROCAR', money(cash.procar))}
     ${statCard('Борг перед інвесторами', money(investorDebt))}
@@ -619,13 +624,15 @@ function renderFinancing(){
     <div class="table-wrap"><table><thead><tr>
       <th>VIN</th><th>База фінансування</th><th>Аванс дилера</th><th>Потреба у фінансуванні</th>
       <th>Планове фінансування</th><th>Економія від авансу</th><th>Факт. вартість інв. коштів</th><th>Різниця (план−факт)</th>
+      <th>Ціна дилеру (рахунок)</th><th>Ціна в Україні (довідково)</th>
     </tr></thead><tbody>
     ${rows.map(({c,fin})=>{
       const {actualInvestorCost} = A.carActualInvestorCost(c, asOf);
       const diff = fin.plannedFinancingCost - actualInvestorCost;
       return `<tr><td class="mono">${esc(c.vin)}</td><td>${money(fin.financingBase)}</td><td>${money(fin.totalAdvance)}</td>
       <td>${money(fin.neededFinancing)}</td><td>${money(fin.plannedFinancingCost)}</td><td>${money(fin.financingEconomy)}</td>
-      <td>${money(actualInvestorCost)}</td><td class="${diff<0?'neg':'pos'}">${money(diff)}</td></tr>`;
+      <td>${money(actualInvestorCost)}</td><td class="${diff<0?'neg':'pos'}">${money(diff)}</td>
+      <td>${money(fin.dealerPrice)}</td><td class="muted">${money(fin.ukrainePrice)}</td></tr>`;
     }).join('')}
     </tbody></table></div>
   </div>`;
@@ -638,13 +645,14 @@ function renderEconomics(){
   return `
   <div class="card">
     <h3>Економіка кожного автомобіля</h3>
+    <p class="hint">«Ціна дилеру» — це те, що ми виставляємо в рахунку (без розмитнення/сертифікації/МРЕО — дилер оплачує їх сам, напряму). «Ціна в Україні» — довідкова сума «під ключ» з урахуванням цих трьох статей, для рішення дилера про купівлю.</p>
     <div class="table-wrap"><table><thead><tr>
-      <th>VIN</th><th>Дилер</th><th>Усі витрати (план)</th><th>Ціна дилеру</th><th>Отримано</th><th>Борг дилера</th>
+      <th>VIN</th><th>Дилер</th><th>Усі витрати (план)</th><th>Ціна дилеру (рахунок)</th><th>Ціна в Україні (довідково)</th><th>Отримано</th><th>Борг дилера</th>
       <th>Комісія AP</th><th>Фінрезультат</th><th>Прибуток по авто</th><th>Прострочено</th>
     </tr></thead><tbody>
     ${rows.map(({c,eco})=>`<tr class="${eco.isOverdue?'row-crit':''}">
       <td class="mono">${esc(c.vin)}</td><td>${esc(dealerName(c.dealerId))}</td>
-      <td>${money(eco.totalCostPlan)}</td><td>${money(eco.dealerPrice)}</td><td>${money(eco.paid)}</td>
+      <td>${money(eco.totalCostPlan)}</td><td>${money(eco.dealerPrice)}</td><td class="muted">${money(eco.ukrainePrice)}</td><td>${money(eco.paid)}</td>
       <td class="${eco.balanceDue>0.01?'neg':''}">${money(eco.balanceDue)}</td>
       <td>${money(eco.commission)}</td>
       <td class="${eco.financeResult<0?'neg':'pos'}">${money(eco.financeResult)}</td>
